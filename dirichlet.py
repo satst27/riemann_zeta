@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import time
 import os
-from lerch.lerch_new import dirichlet_ours as dirichlet_from_lerch
+from lerch import dirichlet_ours as dirichlet_from_lerch
 
 
 # consult arxiv paper for h0, h1 and h2 series and integrals
@@ -204,7 +204,7 @@ def dirichlet_ours(s, chi):
         pre_fac_1 = power(q / pi, (s + a) / 2) * gamma((s + a) / 2)
         pre_fac_2 = power(q / pi, (1 - s + a) / 2) * gamma((1 - s + a) / 2)
         sum0 = mpf('0.0')
-        for k in range(q+1):
+        for k in range(q + 1):
             sum0 += chi[k % q] * exp(2 * pi * i * k / q)
         eX = sum0 / power(i, a) / sqrt(q)
         cs_chi = list(map(lambda x: conj(x), chi))
@@ -432,7 +432,7 @@ if __name__ == "__main__":
     extra_accuracy = 20
     mp.dps = accuracy + extra_accuracy
     i = mpc('0.0', '1.0')
-    s = mpc('0.0', '10000000000.0')
+    s = mpc('0.0', '100000000.0')
     w = exp(i * pi / 3)
     chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
     check_for_one_setting(s, chi_val, accuracy)

@@ -1,3 +1,10 @@
+"""
+Lerch class provides functionality to calculate Hurwitz Lerch function for L(s, lambda, a). The requirements are
+as follows:
+im(s) < 0, 0 <= lambda <=1 and 0 < a < 1.
+Consult the Arxiv paper for details on the functions implemented here.
+
+"""
 from mpmath import *
 from matplotlib import pyplot as plt
 import numpy as np
@@ -5,9 +12,8 @@ import time
 import os
 import pandas as pd
 
-# consult arxiv paper for h0, h1 and h2 series and integrals
 
-# check if alpha needs a different direction, remove heavyside functions and put a for loop
+# check if alpha needs a different direction
 
 
 class Lerch:
@@ -31,9 +37,15 @@ class Lerch:
         self.n1 = self.build_n1()
         self.n2 = self.build_n2()
 
+        # the following choice of r0, r1 and r2 (the centre points for various integrals) leads to exact location
+        # of the saddle points. However, this means that some singularities due to the sin function in the denominator
+        # may lie very close to the saddle points
+
         self.r0 = self.build_root_h0()
         self.r1 = self.build_root_h1()
         self.r2 = self.build_root_h2()
+
+        # the following choices ensure that r0, r1 and r2 fall at the centre of the two nearby singularities
 
         # self.r0 = (self.n0 + self.a) + 0.5
         # self.r1 = min(-self.lam / 2.0, -(self.n1 + self.lam) + 0.5)
@@ -41,8 +53,7 @@ class Lerch:
 
         if self.debug:
             print('n0', self.n0, 'n1', self.n1, 'n2', self.n2)
-            print('r0',  nstr(self.r0, 5), 'r1', nstr(self.r1, 5), 'r2', nstr(self.r2, 5))
-            # print('r01', nstr(self.r01, 5))
+            print('r0', nstr(self.r0, 5), 'r1', nstr(self.r1, 5), 'r2', nstr(self.r2, 5))
 
         self.q = self.set_q_value()
         self.m, self.h = self.set_m_and_h_values()
@@ -50,7 +61,6 @@ class Lerch:
 
     def build_n0(self):
         w0 = self.build_root_h0()
-        # n0 = max(floor(w0 - self.a), 1)
         n0 = floor(w0 - self.a)
         return n0
 
@@ -61,7 +71,6 @@ class Lerch:
 
     def build_n2(self):
         w_plus = self.build_root_h2()
-        # n2 = max(floor(w_plus + self.lam), 1)
         n2 = floor(w_plus + self.lam)
         return n2
 
@@ -118,11 +127,10 @@ class Lerch:
         return y
 
     def series_h0(self):
-        sum0 = mpf('0.0')
-        # start the sum from 1 for Riemann
+        # start the sum from 1 for Riemann i.e. when a = 0. This ensures Riemann sub case gives meaningful results
 
         sum0 = nsum(lambda k: exp(2 * pi * self.i * self.lam * k) * power(k + self.a, -self.s)
-                    if (re(k + self.a) > 0) else 0.0, [0, self.n0])
+        if (re(k + self.a) > 0) else 0.0, [0, self.n0])
         if self.debug:
             print('series_h0 : ', sum0)
         return sum0
@@ -139,14 +147,12 @@ class Lerch:
         return val
 
     def series_h1(self):
-        sum_h1 = mpf('0.0')
-
         sum_h1 = nsum(lambda k: exp(-2 * pi * self.i * self.a * k) * power(k + self.lam, self.s - 1)
-            if re(k + self.lam) > 0 else 0.0, [0, self.n1 - 1])  # check the start of the sum
+        if re(k + self.lam) > 0 else 0.0, [0, self.n1 - 1])  # check the start of the sum
 
         pre_factor = exp(-2 * pi * self.i * self.a * self.lam) * gamma(1 - self.s) \
                      / power((2 * pi), 1 - self.s) * exp(pi / 2 * self.i * (1 - self.s))
-        res = pre_factor * sum_h1  # important signs missing in paper #sandeep
+        res = pre_factor * sum_h1  # important sign missing in the Balanzario paper
         if self.debug:
             print('n1 : ', self.n1)
             print('series_h1', res)
@@ -198,12 +204,13 @@ class Lerch:
         sum0 = mpf('0.0')
         for jx in self.lin_grid:
             sum0 += self.integrand_h0(jx)
+
         y = (self.h * sum0) * exp(-self.i * pi * self.a * (1 + self.a + 2 * self.lam))
         if self.debug:
             print('integral_h0 : ', y)
         return y
 
-    def integrand_h1(self, x):  # same integrand for h1 and h2
+    def integrand_h1(self, x):
         zn = self.r1 + self.alpha * self.eps * sinh(x)
         y = (self.alpha * self.eps * cosh(x)) * exp(self.i * pi * power(zn, 2) + 2 * pi
                                                     * self.i * (self.a + self.lam) * zn) * power(zn, self.s - 1) / (
@@ -212,7 +219,7 @@ class Lerch:
             y = y * exp(2 * pi * self.i * (1 - self.s))
         return y
 
-    def integrand_h2(self, x):  # same integrand for h1 and h2
+    def integrand_h2(self, x):
         zn = self.r2 + self.alpha * self.eps * sinh(x)
         y = (self.alpha * self.eps * cosh(x)) * exp(self.i * pi * power(zn, 2) + 2 * pi
                                                     * self.i * (self.a + self.lam) * zn) * power(zn, self.s - 1) / (
@@ -246,7 +253,6 @@ class Lerch:
         mp_org_accuracy = mp.dps
         mp.dps = 20
         # h0 :
-
         q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) / self.alpha)
         if self.debug:
             print('q_est', q_est)
@@ -262,7 +268,7 @@ class Lerch:
         if self.debug:
             print('q_h0', q_h0)
 
-        # h1: this case corresponds to very small correction that is much smaller than the required accuracy
+        # h1: this case corresponds to very small correction that in practise is much smaller than the required accuracy
 
         # h2 :
         q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) / self.alpha)
@@ -294,20 +300,19 @@ class Lerch:
         return q
 
     def set_m_and_h_values(self):
-        h = 0.25 * power(pi, 2) / (ln(10.) * mp.dps)  # sandeep
-        m = 2 * int(self.q / h + 0.5) + 1
+        h = 0.25 * power(pi, 2) / (ln(10.) * mp.dps)
+        m = 2 * int(self.q / h) + 1
         h = 2.0 * self.q / (m - 1)
         return m, h
 
     def set_q_m_and_h(self, q, h):
         self.q = q
-        self.m = 2 * int(self.q / h + 0.5) + 1
+        self.m = 2 * int(self.q / h) + 1
         self.h = 2.0 * self.q / (self.m - 1)
         self.lin_grid = linspace(-self.q, self.q, self.m)
         return
-    
+
     def lerch_ours(self):
-        # print('m = ', self.m, ' q = ', nstr(self.q, 5), ' h = ', nstr(self.h, 5))
         series_and_residues_h0 = self.series_h0() + self.residue_factor * self.series_residues_h0()
         val_h0 = self.integral_h0() + series_and_residues_h0
 
@@ -319,6 +324,7 @@ class Lerch:
 
         val_our = val_h0 + val_h1 + val_h2
         if self.debug:
+            print('m = ', self.m, ' q = ', nstr(self.q, 5), ' h = ', nstr(self.h, 5))
             print('series_plus_residue_h0 ', series_and_residues_h0)
             print('series_plus_residue_h1 ', series_and_residues_h1)
             print('series_plus_residue_h2 ', series_and_residues_h2)
@@ -335,31 +341,22 @@ def lerch_ours(s, lam, a):
         val = lerch.lerch_ours()
     else:
         i = mpc('0.0', '1.0')
-        lerch1 = Lerch(1 - s, 1-a, lam)
+        lerch1 = Lerch(1 - s, 1 - a, lam)
         lerch2 = Lerch(1 - s, a, 1 - lam)
-        pre_fac = power(2 * pi, -(1-s)) * gamma(1 - s)
-        pre_fac_1 = exp(+pi/2 * i * (1-s) - 2 * pi * i * a * lam)
-        pre_fac_2 = exp(-pi/2 * i * (1-s) + 2 * pi * i * a * (1-lam))
+        pre_fac = power(2 * pi, -(1 - s)) * gamma(1 - s)
+        pre_fac_1 = exp(+pi / 2 * i * (1 - s) - 2 * pi * i * a * lam)
+        pre_fac_2 = exp(-pi / 2 * i * (1 - s) + 2 * pi * i * a * (1 - lam))
 
         val_1 = lerch1.lerch_ours()
         val_2 = lerch2.lerch_ours()
 
-        # val_10 = lerchphi(exp(2 * pi * i * lam), 1 - s, -a)
-        # val_20 = lerchphi(exp(2 * pi * i * (1-lam)), 1 - s, a)
-
         val = pre_fac * (pre_fac_1 * val_1 + pre_fac_2 * val_2)
-        # print('val_1 ', val_1)
-        # print('val_10', val_10)
-        # print('val_2 ', val_2)
-        # print('val_20', val_20)
-        # print('pref_fac', pre_fac)
-        # print('pref_fac1', pre_fac_1)
-        # print('pref_fac2', pre_fac_2)
+
     return val
 
 
 def lerch_ours_h(s, lam, a, q, h):
-    assert(im(s) < 0)  # Only implemented for im(s) < 0
+    assert (im(s) < 0)  # only implemented for im(s) < 0
     lerch = Lerch(s, lam, a)
     lerch.set_q_m_and_h(q, h)
     return lerch.lerch_ours()
@@ -376,7 +373,7 @@ def riemann_ours(s):
 def dirichlet_ours(s, chi_val):
     m = len(chi_val)
     val = mpf('0.0')
-    for k in range(1, m+1):
+    for k in range(1, m + 1):
         val += hurwitz_ours(s, mpf('1.0') * k / m) * chi_val[k % m]
     return val * power(m, -s)
 
@@ -576,7 +573,9 @@ def check_for_h_dependence():
     a = mpf('0.9')
 
     start = time.time()
-    lerch_ref = mpc('0.81247019538516162988458183946323724256833496580904919450961814182536062164349287836058069283622909065525733252800346505004056771086293627798453924747001401715853928914907495110853165178593260535020745484593622087300894797417001977136365113528561705236290380246549185958350183158074681872968223381166767505208140148451680862468805651884199967009408874948257629881738422195270219223242998595084788800179736362566514157769198339182465220854221531481253473868686462382901163512466878767479301695158022839', '-0.38668807953602791631487998284981675490992185017136017621799054617569628032573177414004617051186093974358220543390275296260197536984579239314063338974580085896185136719594840526754207518488008902967600066006397336110935481031531207155346444490366965070609925862764689023840945792670597141174729394680267558313689709271175135410503786971336130588711652706013635156555420179598718094312929455162638724581487454460245773865601084489017230231188225055763676865749716644312520399424369878885703704610301469')
+    lerch_ref = mpc(
+        '0.81247019538516162988458183946323724256833496580904919450961814182536062164349287836058069283622909065525733252800346505004056771086293627798453924747001401715853928914907495110853165178593260535020745484593622087300894797417001977136365113528561705236290380246549185958350183158074681872968223381166767505208140148451680862468805651884199967009408874948257629881738422195270219223242998595084788800179736362566514157769198339182465220854221531481253473868686462382901163512466878767479301695158022839',
+        '-0.38668807953602791631487998284981675490992185017136017621799054617569628032573177414004617051186093974358220543390275296260197536984579239314063338974580085896185136719594840526754207518488008902967600066006397336110935481031531207155346444490366965070609925862764689023840945792670597141174729394680267558313689709271175135410503786971336130588711652706013635156555420179598718094312929455162638724581487454460245773865601084489017230231188225055763676865749716644312520399424369878885703704610301469')
 
     end = time.time()
     time_mpmath = (end - start)
@@ -595,7 +594,7 @@ def check_for_h_dependence():
         err = abs(lerch_ours_val - lerch_ref)
         # mp.dps = accuracy
         error = log10(err)
-        # print 'log error  :', error
+        # print('log error  :', error)
         col_values.append([nstr(h, 5), nstr(error, 5)])
         print('theirs ', lerch_ref)
         print('ours   ', lerch_ours_val)
