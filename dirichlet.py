@@ -432,7 +432,7 @@ if __name__ == "__main__":
     extra_accuracy = 20
     mp.dps = accuracy + extra_accuracy
     i = mpc('0.0', '1.0')
-    s = mpc('0.0', '100000000.0')
+    s = mpc('0.6', '100000000.0')
     w = exp(i * pi / 3)
     chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
     check_for_one_setting(s, chi_val, accuracy)
