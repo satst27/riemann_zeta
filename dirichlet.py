@@ -154,13 +154,13 @@ class Dirichlet:
 
     def set_m_and_h_values(self):
         h = 0.25 * power(pi, 2) / (ln(10.) * mp.dps)  # sandeep
-        m = 2 * int(self.q / h + 0.5) + 1
+        m = 2 * int(self.q / h) + 1
         h = 2.0 * self.q / (m - 1)
         return m, h
 
     def set_q_m_and_h(self, q, h):
         self.q = q
-        self.m = 2 * int(self.q / h + 0.5) + 1
+        self.m = 2 * int(self.q / h) + 1
         self.h = 2.0 * self.q / (self.m - 1)
         self.lin_grid = linspace(-self.q, self.q, self.m)
         return
