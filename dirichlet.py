@@ -29,8 +29,8 @@ class Dirichlet:
 
         self.n0 = self.build_n0()
 
-        # self.r0 = self.build_root_h0()
-        self.r0 = self.n0 + 0.5
+        self.r0 = self.build_root_h0()
+        # self.r0 = self.n0 + 0.5
 
         if self.debug:
             print('n0', self.n0)
@@ -43,11 +43,11 @@ class Dirichlet:
 
     def build_n0(self):
         w0 = self.build_root_h0()
-        n0 = floor(w0)
+        n0 = floor(re(w0)-im(w0))
         return n0
 
     def build_root_h0(self):
-        w0 = sqrt(im(self.s) * self.md / (2 * pi))
+        w0 = sqrt(self.s * self.md / (2 * pi * self.i))
         return w0
 
     def double_exp_residue_pos_h0(self, k):
@@ -136,17 +136,23 @@ class Dirichlet:
         # h0 :
 
         q_est = asinh(sqrt(mp_org_accuracy / pi * self.md * ln(10.)) / self.alpha)
+        low_val = log10(abs(self.integrand_h0(self.s, 0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h0(self.s, 1.5 * q_est))) + mp_org_accuracy
         if self.debug:
             print('q_est', q_est)
-            print('lower', log10(abs(self.integrand_h0(self.s, 0.8 * q_est))) + mp_org_accuracy)
-            print('upper', log10(abs(self.integrand_h0(self.s, 1.5 * q_est))) + mp_org_accuracy)
-        q_right = findroot(lambda q: log10(abs(self.integrand_h0(self.s, +q))) + mp_org_accuracy,
-                           (0.8 * q_est, 1.5 * q_est),
-                           solver='bisect', tol=1.e-8)
-        q_left = findroot(lambda q: log10(abs(self.integrand_h0(self.s, -q))) + mp_org_accuracy,
-                          (0.8 * q_est, 1.5 * q_est),
-                          solver='bisect', tol=1.e-8)
-        q = max(q_right, q_left)
+            print('lower', low_val)
+            print('upper', high_val)
+        if low_val * high_val < 0:
+            q_right = findroot(lambda q: log10(abs(self.integrand_h0(self.s, +q))) + mp_org_accuracy,
+                               (0.8 * q_est, 1.5 * q_est),
+                               solver='bisect', tol=1.e-8)
+            q_left = findroot(lambda q: log10(abs(self.integrand_h0(self.s, -q))) + mp_org_accuracy,
+                              (0.8 * q_est, 1.5 * q_est),
+                              solver='bisect', tol=1.e-8)
+            q = max(q_right, q_left)
+        else:
+            q = q_est
+
         if self.debug:
             print('q', q)
         mp.dps = mp_org_accuracy
@@ -432,7 +438,7 @@ if __name__ == "__main__":
     extra_accuracy = 20
     mp.dps = accuracy + extra_accuracy
     i = mpc('0.0', '1.0')
-    s = mpc('0.6', '100000000.0')
+    s = mpc('0.6', '10000.0')
     w = exp(i * pi / 3)
     chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
     check_for_one_setting(s, chi_val, accuracy)
