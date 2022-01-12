@@ -61,32 +61,32 @@ class Lerch:
 
     def build_n0(self):
         w0 = self.build_root_h0()
-        n0 = floor(w0 - self.a)
+        n0 = floor(re(w0) + im(w0) - self.a)
         return n0
 
     def build_n1(self):
         w_minus = self.build_root_h1()
-        n1 = -floor(w_minus + self.lam)
+        n1 = -floor(re(w_minus) - im(w_minus) + self.lam)
         return n1
 
     def build_n2(self):
         w_plus = self.build_root_h2()
-        n2 = floor(w_plus + self.lam)
+        n2 = floor(re(w_plus) - im(w_plus) + self.lam)
         return n2
 
     def build_root_h0(self):
         c = (self.lam + self.a) / 2
-        w0 = c + sqrt(c * c - im(self.s) / (2 * pi))
+        w0 = c + sqrt(c * c - self.s / (2 * pi * self.i))
         return w0
 
     def build_root_h1(self):
         c = (self.lam + self.a) / 2
-        w_minus = -c - sqrt(c * c - im(self.s) / (2 * pi))
+        w_minus = -c - sqrt(c * c - self.s / (2 * pi * self.i))
         return w_minus
 
     def build_root_h2(self):
         c = (self.lam + self.a) / 2
-        w_plus = -c + sqrt(c * c - im(self.s) / (2 * pi))
+        w_plus = -c + sqrt(c * c - self.s / (2 * pi * self.i))
         return w_plus
 
     def double_exp_residue_pos_h0(self, k):
@@ -173,22 +173,24 @@ class Lerch:
         return val
 
     def series_h2(self):
+        pre_factor = exp(-2 * pi * self.i * self.a * self.lam) * gamma(1 - self.s) / power((2 * pi), 1 - self.s)  \
+                     * exp(-pi / 2 * self.i * (1 - self.s))
         sum_h2 = nsum(lambda k: exp(+2 * pi * self.i * self.a * k) * power(k - self.lam, self.s - 1), [1, self.n2])
-        pre_factor = exp(-2 * pi * self.i * self.a * self.lam) * gamma(1 - self.s) / power((2 * pi), 1 - self.s)
-        res = pre_factor * sum_h2 * exp(-pi / 2 * self.i * (1 - self.s))  # important signs missing in paper #sandeep
+        res = pre_factor * sum_h2   # important signs missing in paper #sandeep
         if self.debug:
             print('series_h2 : ', res)
         return res
 
     def series_residues_h2(self):
-        pre_factor = exp(-2 * pi * self.i * self.a * self.lam) * gamma(1 - self.s) / power((2 * pi), 1 - self.s)
+        pre_factor = exp(-2 * pi * self.i * self.a * self.lam) * gamma(1 - self.s) / power((2 * pi), 1 - self.s) \
+                     * exp(-pi / 2 * self.i * (1 - self.s))
 
         val = nsum(
             lambda k: - self.phi_hat_h2(k) * exp(+2 * pi * self.i * self.a * (self.n2 + k)) * power(
                 self.n2 + k - self.lam, self.s - 1) if (self.n2 + k - self.lam > 0) else 0.0,
             [- self.num_of_residues + 1, self.num_of_residues])
 
-        val *= pre_factor * exp(-pi / 2 * self.i * (1 - self.s))
+        val *= pre_factor
         if self.debug:
             print('series_residues_h2 : ', val)
         return val
@@ -253,49 +255,119 @@ class Lerch:
         mp_org_accuracy = mp.dps
         mp.dps = 20
         # h0 :
-        q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) / self.alpha)
+        q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) * self.alpha)
+        low_val = log10(abs(self.integrand_h0(0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h0(1.5 * q_est))) + mp_org_accuracy
+
         if self.debug:
             print('q_est', q_est)
-            print('lower', log10(abs(self.integrand_h0(0.8 * q_est))) + mp_org_accuracy)
-            print('upper', log10(abs(self.integrand_h0(1.5 * q_est))) + mp_org_accuracy)
-        q_right = findroot(lambda q: log10(abs(self.integrand_h0(+q))) + mp_org_accuracy,
-                           (0.8 * q_est, 1.5 * q_est),
-                           solver='bisect', tol=1.e-8)
-        q_left = findroot(lambda q: log10(abs(self.integrand_h0(-q))) + mp_org_accuracy,
-                          (0.8 * q_est, 1.5 * q_est),
-                          solver='bisect', tol=1.e-8)
+            print('h0_lower_right', low_val)
+            print('h0_upper_right', high_val)
+
+        if low_val * high_val < 0:
+            q_right = findroot(lambda q: log10(abs(self.integrand_h0(+q))) + mp_org_accuracy,
+                               (0.8 * q_est, 1.5 * q_est),
+                               solver='bisect', tol=1.e-8)
+        else:
+            q_right = q_est
+
+        low_val = log10(abs(self.integrand_h0(-0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h0(-1.5 * q_est))) + mp_org_accuracy
+
+        if self.debug:
+            print('q_est', q_est)
+            print('h0_lower_left', low_val)
+            print('h0_upper_left', high_val)
+
+        if low_val * high_val < 0:
+            q_left = findroot(lambda q: log10(abs(self.integrand_h0(-q))) + mp_org_accuracy,
+                              (0.8 * q_est, 1.5 * q_est),
+                              solver='bisect', tol=1.e-8)
+        else:
+            q_left = q_est
+
         q_h0 = max(q_right, q_left)
+
         if self.debug:
             print('q_h0', q_h0)
 
         # h1: this case corresponds to very small correction that in practise is much smaller than the required accuracy
+        q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) / self.alpha)
+
+        low_val = log10(abs(self.integrand_h1(0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h1(1.5 * q_est))) + mp_org_accuracy
+
+        if self.debug:
+            print('q_est', q_est)
+            print('h1_lower_right', low_val)
+            print('h1_upper_right', high_val)
+
+        if low_val * high_val < 0:
+            q_right = findroot(lambda q: log10(abs(self.integrand_h1(+q))) + mp_org_accuracy,
+                               (0.8 * q_est, 1.5 * q_est),
+                               solver='bisect', tol=1.e-8)
+        else:
+            q_right = q_est
+
+        low_val = log10(abs(self.integrand_h1(-0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h1(-1.5 * q_est))) + mp_org_accuracy
+
+        if self.debug:
+            print('q_est', q_est)
+            print('h1_lower_left', low_val)
+            print('h1_upper_left', high_val)
+
+        if low_val * high_val < 0:
+            q_left = findroot(lambda q: log10(abs(self.integrand_h1(-q))) + mp_org_accuracy,
+                              (0.8 * q_est, 1.5 * q_est),
+                              solver='bisect', tol=1.e-8)
+        else:
+            q_left = q_est
+
+        q_h1 = max(q_right, q_left)
 
         # h2 :
         q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) / self.alpha)
 
-        lower = log10(abs(self.integrand_h2(0.8 * q_est))) + mp_org_accuracy
-        upper = log10(abs(self.integrand_h2(1.5 * q_est))) + mp_org_accuracy
+        low_val = log10(abs(self.integrand_h2(0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h2(1.5 * q_est))) + mp_org_accuracy
 
         if self.debug:
             print('q_est', q_est)
-            print('lower', log10(abs(self.integrand_h2(0.8 * q_est))) + mp_org_accuracy)
-            print('upper', log10(abs(self.integrand_h2(1.5 * q_est))) + mp_org_accuracy)
+            print('h2_lower_right', low_val)
+            print('h2_upper_right', high_val)
 
-        if lower * upper < 0:
+        if low_val * high_val < 0:
             q_right = findroot(lambda q: log10(abs(self.integrand_h2(+q))) + mp_org_accuracy,
                                (0.8 * q_est, 1.5 * q_est),
                                solver='bisect', tol=1.e-8)
+        else:
+            q_right = q_est
+
+        low_val = log10(abs(self.integrand_h2(-0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h2(-1.5 * q_est))) + mp_org_accuracy
+
+        if self.debug:
+            print('q_est', q_est)
+            print('h2_lower_left', low_val)
+            print('h2_upper_left', high_val)
+
+        if low_val * high_val < 0:
             q_left = findroot(lambda q: log10(abs(self.integrand_h2(-q))) + mp_org_accuracy,
                               (0.8 * q_est, 1.5 * q_est),
                               solver='bisect', tol=1.e-8)
-            q_h = max(q_right, q_left)
         else:
-            q_h = q_est
+            q_left = q_est
+
+        q_h2 = max(q_right, q_left)
 
         if self.debug:
-            print('q_h', q_h)
-        q = max(q_h0, q_h)
+            print('q_h2', q_h2)
+        q = max([q_h0, q_h1, q_h2])
         mp.dps = mp_org_accuracy
+
+        if self.debug:
+            print('q', q)
 
         return q
 
@@ -621,11 +693,11 @@ if __name__ == "__main__":
     accuracy_mpmath = 200
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('0.6', '100.0')
-    lam = mpf('0.5')
-    a = mpf('0.5')
+    s = mpc('1.6', '-100.0')
+    lam = mpf('0.2')
+    a = mpf('0.9')
 
-    # check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
+    check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
     # check_for_multiple_settings()
     # check_for_h_dependence()
     # check_plots_h2(results_dir)
@@ -637,9 +709,9 @@ if __name__ == "__main__":
     # print('hurwitz ours   :', nstr(hurwitz_ours(s, a), accuracy))
     # print('hurwitz mpmath :', nstr(hurwitz(s, a), accuracy))
 
-    i = mpc('0.0', '1.0')
-    s = mpc('0.6', '10000.0')
-    w = exp(i * pi / 3)
-    chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
-    print('dirichlet ours   :', nstr(dirichlet_ours(s, chi_val), accuracy))
-    print('dirichlet mpmath :', nstr(dirichlet(s, chi_val), accuracy))
+    # i = mpc('0.0', '1.0')
+    # s = mpc('-20.0', '-10.0')
+    # w = exp(i * pi / 3)
+    # chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
+    # print('dirichlet ours   :', nstr(dirichlet_ours(s, chi_val), accuracy))
+    # print('dirichlet mpmath :', nstr(dirichlet(s, chi_val), accuracy))

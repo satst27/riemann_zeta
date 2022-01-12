@@ -5,8 +5,8 @@ import time
 import os
 from lerch import dirichlet_ours as dirichlet_from_lerch
 
-
 # consult arxiv paper for h0, h1 and h2 series and integrals
+
 
 class Dirichlet:
     def __init__(self, s, chi):
@@ -140,18 +140,32 @@ class Dirichlet:
         high_val = log10(abs(self.integrand_h0(self.s, 1.5 * q_est))) + mp_org_accuracy
         if self.debug:
             print('q_est', q_est)
-            print('lower', low_val)
-            print('upper', high_val)
+            print('lower_right', low_val)
+            print('upper_right', high_val)
+
         if low_val * high_val < 0:
             q_right = findroot(lambda q: log10(abs(self.integrand_h0(self.s, +q))) + mp_org_accuracy,
                                (0.8 * q_est, 1.5 * q_est),
                                solver='bisect', tol=1.e-8)
+        else:
+            q_right = q_est
+
+        low_val = log10(abs(self.integrand_h0(self.s, -0.8 * q_est))) + mp_org_accuracy
+        high_val = log10(abs(self.integrand_h0(self.s, -1.5 * q_est))) + mp_org_accuracy
+
+        if self.debug:
+            print('q_est', q_est)
+            print('lower_left', low_val)
+            print('upper_left', high_val)
+
+        if low_val * high_val < 0:
             q_left = findroot(lambda q: log10(abs(self.integrand_h0(self.s, -q))) + mp_org_accuracy,
                               (0.8 * q_est, 1.5 * q_est),
                               solver='bisect', tol=1.e-8)
-            q = max(q_right, q_left)
         else:
-            q = q_est
+            q_left = q_est
+
+        q = max(q_right, q_left)
 
         if self.debug:
             print('q', q)
