@@ -81,12 +81,12 @@ class Lerch:
 
     def build_root_h1(self):
         c = (self.lam + self.a) / 2
-        w_minus = -c - sqrt(c * c - self.s / (2 * pi * self.i))
+        w_minus = -c - sqrt(c * c + (1 - self.s) / (2 * pi * self.i))
         return w_minus
 
     def build_root_h2(self):
         c = (self.lam + self.a) / 2
-        w_plus = -c + sqrt(c * c - self.s / (2 * pi * self.i))
+        w_plus = -c + sqrt(c * c +(1 - self.s) / (2 * pi * self.i))
         return w_plus
 
     def double_exp_residue_pos_h0(self, k):
