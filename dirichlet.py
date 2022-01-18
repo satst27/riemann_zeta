@@ -3,13 +3,14 @@ from matplotlib import pyplot as plt
 import numpy as np
 import time
 import os
+import pandas as pd
 from lerch import dirichlet_ours as dirichlet_from_lerch
 
 # consult arxiv paper for h0, h1 and h2 series and integrals
 
 
 class Dirichlet:
-    def __init__(self, s, chi):
+    def __init__(self, s, chi, alpha=mpf('1.0'), num_of_poles=1):
         self.s = s
         self.chi = chi
         self.md = len(chi)
@@ -18,11 +19,9 @@ class Dirichlet:
         else:
             assert (chi[0] == 1)
         self.i = mpc('0', '1')
-        self.alpha = mpf('1.0')  # sandeep
-        self.residue_factor = mpf(
-            '1.0')  # if set to 1 it takes residue contributions into account. Set to zero it ignores them
+        self.alpha = alpha
         self.eps = exp(self.i * pi / 4)  # direction of integration for h1 and h2. For h0 it is 1/eps
-        self.num_of_residues = 1  # sandeep
+        self.num_of_poles = num_of_poles
         self.debug = False
 
         self.verify_character_is_primitive()
@@ -105,12 +104,12 @@ class Dirichlet:
 
     def series_residues_h0(self, s):
         val = mpf('0.0')
-        for k in range(- self.num_of_residues + 1, self.num_of_residues + 1):
+        for k in range(- self.num_of_poles + 1, self.num_of_poles + 1):
             if self.n0 + k > 0:
                 val += self.phi_hat_h0(k) * self.xchar(self.n0 + k) * power(self.n0 + k, -s)
 
         # val = nsum(lambda k: (self.n0 + k > 0) * self.phi_hat_h0(k) * power(self.n0 + k, -s),
-        #            [- self.num_of_residues + 1, self.num_of_residues])
+        #            [- self.num_of_poles + 1, self.num_of_poles])
         if self.debug:
             print('n0 : ', self.n0)
             print('series_residues_h0 : ', val)
@@ -186,7 +185,7 @@ class Dirichlet:
         return
 
     def total_value(self, s):
-        series_and_residues_h0 = self.series_h0(s) - self.residue_factor * self.series_residues_h0(s)
+        series_and_residues_h0 = self.series_h0(s) - self.series_residues_h0(s)
         val_our = self.integral_h0(s) + series_and_residues_h0
 
         if self.debug:
@@ -211,10 +210,10 @@ class Dirichlet:
         return dirichlet_val
 
 
-def dirichlet_ours(s, chi):
+def dirichlet_ours(s, chi, alpha=mpf('1.0'), num_of_poles=1):
     val = mpf('0.0')
     if im(s) > 0:
-        rz_obj = Dirichlet(s, chi)
+        rz_obj = Dirichlet(s, chi, alpha, num_of_poles)
         val = rz_obj.dirichlet_ours()
     else:
         i = mpc('0.0', '1.0')
@@ -228,14 +227,14 @@ def dirichlet_ours(s, chi):
             sum0 += chi[k % q] * exp(2 * pi * i * k / q)
         eX = sum0 / power(i, a) / sqrt(q)
         cs_chi = list(map(lambda x: conj(x), chi))
-        rz_obj = Dirichlet(1 - s, cs_chi)
+        rz_obj = Dirichlet(1 - s, cs_chi, alpha, num_of_poles)
         val = rz_obj.dirichlet_ours()
         val = eX * pre_fac_2 / pre_fac_1 * val
     return val
 
 
-def dirichlet_ours_h(s, chi, q, h):
-    rz_obj = Dirichlet(s, chi)
+def dirichlet_ours_h(s, chi, q, h, alpha=mpf('1.0'), num_of_poles=1):
+    rz_obj = Dirichlet(s, chi, alpha, num_of_poles)
     rz_obj.set_q_m_and_h(q, h)
     return rz_obj.dirichlet_ours()
 
@@ -396,8 +395,8 @@ def check_plots_h0(results_dir):
     return
 
 
-def check_for_h_dependence():
-    accuracy = 400
+def check_for_h_dependence(results_dir):
+    accuracy = 600
     extra_accuracy = 20
     mp.dps = accuracy + extra_accuracy
 
@@ -414,29 +413,53 @@ def check_for_h_dependence():
     q = mpf('6.0')
     h = mpf('0.05')
 
-    file_name = 'dirichlet_results_with_residue.csv'
     col_values = []
-    col_names = ['h', 'error']
+    col_names = ['h', 'm', 'error_one_0', 'error_one_1', 'error_quarter_0', 'error_quarter_1']
+
+    alpha = 1.0
+    num_of_poles = 0
+    rz_obj0 = Dirichlet(s, chi, alpha, num_of_poles)
+
+    alpha = 1.0
+    num_of_poles = 1
+    rz_obj1 = Dirichlet(s, chi, alpha, num_of_poles)
+
+    alpha = 0.25
+    num_of_poles = 0
+    rz_obj2 = Dirichlet(s, chi, alpha, num_of_poles)
+
+    alpha = 0.25
+    num_of_poles = 1
+    rz_obj3 = Dirichlet(s, chi, alpha, num_of_poles)
+
+    rz_obj_list = [rz_obj0, rz_obj1, rz_obj2, rz_obj3]
+
+    # file_name = r'dirichlet_h_dependence_' + nstr(alpha, 3) + '_' + nstr(num_of_poles, 1) + '.csv'
+    file_name = results_dir + r'dirichlet_h_dependence.csv'
+
     for k in range(1, 6):
         print(k)
-        start = time.time()
-        dirichlet_ours_val = dirichlet_ours_h(s, chi, q, h)
-        end = time.time()
+        error_list = []
+        for rz_obj in rz_obj_list:
+            rz_obj.set_q_m_and_h(q, h)
+            dirichlet_ours_val = rz_obj.dirichlet_ours()
+            err = abs(dirichlet_ours_val - dirichlet_ref)
+            error = log10(err)
+            error_list.append(error)
 
-        err = abs(dirichlet_ours_val - dirichlet_ref)
-        # mp.dps = accuracy
-        error = log10(err)
         # print 'log error  :', error
-        col_values.append([nstr(h, 5), nstr(error, 5)])
-        print('theirs ', dirichlet_ref)
-        print('ours   ', dirichlet_ours_val)
-        print('error', nstr(error, 5))
+        col_values.append([nstr(h, 5), rz_obj0.m, nstr(error_list[0], 5), nstr(error_list[1], 5),
+                           nstr(error_list[2], 5), nstr(error_list[3], 5)])
+        # print('theirs ', dirichlet_ref)
+        # print('ours   ', dirichlet_ours_val)
+        # print('error', nstr(error, 5))
         h = 0.5 * h
         res = pd.DataFrame.from_records(col_values, columns=col_names)
         res.to_csv(file_name)
 
     res = pd.DataFrame.from_records(col_values, columns=col_names)
-    res.to_csv(file_name)
+
+    res.to_csv(file_name, index=False)
     return
 
 
@@ -455,8 +478,8 @@ if __name__ == "__main__":
     s = mpc('0.6', '10000.0')
     w = exp(i * pi / 3)
     chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
-    check_for_one_setting(s, chi_val, accuracy)
+    # check_for_one_setting(s, chi_val, accuracy)
     # check_for_multiple_settings()
-    # check_for_h_dependence()
+    check_for_h_dependence(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)

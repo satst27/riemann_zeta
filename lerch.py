@@ -17,7 +17,7 @@ import pandas as pd
 
 
 class Lerch:
-    def __init__(self, s, lam, a):
+    def __init__(self, s, lam, a, alpha=mpf('1.0'), num_of_poles=1):
         if lam == 1:
             lam = 0
         assert (0 <= lam < 1)
@@ -26,11 +26,9 @@ class Lerch:
         self.lam = lam
         self.a = a
         self.i = mpc('0', '1')
-        self.alpha = mpf('0.2')  # sandeep
-        self.residue_factor = mpf(
-            '1.0')  # if set to 1 it takes residue contributions into account. Set to zero it ignores them
+        self.alpha = alpha
         self.eps = exp(self.i * pi / 4)  # direction of integration for h1 and h2. For h0 it is 1/eps
-        self.num_of_residues = 2  # sandeep
+        self.num_of_poles = num_of_poles
         self.debug = False
 
         self.n0 = self.build_n0()
@@ -139,7 +137,7 @@ class Lerch:
         val = nsum(
             lambda k: self.phi_hat_h0(k) * exp(2 * pi * self.i * self.lam * (self.n0 + k))
                       * power(self.n0 + k + self.a, -self.s) if re(self.n0 + k + self.a) > 0 else 0.0,
-            [- self.num_of_residues + 1, self.num_of_residues])  # note the minus sign
+            [- self.num_of_poles + 1, self.num_of_poles])  # note the minus sign
 
         if self.debug:
             print('n0 : ', self.n0)
@@ -166,7 +164,7 @@ class Lerch:
             lambda k: self.phi_hat_h1(k)
                       * exp(-2 * pi * self.i * self.a * (self.n1 + k))
                       * power(self.n1 + k + self.lam, self.s - 1) if (self.n1 + k + self.lam > 0) else 0.0,
-            [- self.num_of_residues + 1, self.num_of_residues])
+            [- self.num_of_poles + 1, self.num_of_poles])
         val *= pre_factor
         if self.debug:
             print('series_residues_h1', val)
@@ -188,7 +186,7 @@ class Lerch:
         val = nsum(
             lambda k: - self.phi_hat_h2(k) * exp(+2 * pi * self.i * self.a * (self.n2 + k)) * power(
                 self.n2 + k - self.lam, self.s - 1) if (self.n2 + k - self.lam > 0) else 0.0,
-            [- self.num_of_residues + 1, self.num_of_residues])
+            [- self.num_of_poles + 1, self.num_of_poles])
 
         val *= pre_factor
         if self.debug:
@@ -385,13 +383,13 @@ class Lerch:
         return
 
     def lerch_ours(self):
-        series_and_residues_h0 = self.series_h0() + self.residue_factor * self.series_residues_h0()
+        series_and_residues_h0 = self.series_h0() + self.series_residues_h0()
         val_h0 = self.integral_h0() + series_and_residues_h0
 
-        series_and_residues_h1 = self.series_h1() + self.residue_factor * self.series_residues_h1()
+        series_and_residues_h1 = self.series_h1() + self.series_residues_h1()
         val_h1 = self.integral_h1() + series_and_residues_h1
 
-        series_and_residues_h2 = self.series_h2() + self.residue_factor * self.series_residues_h2()
+        series_and_residues_h2 = self.series_h2() + self.series_residues_h2()
         val_h2 = self.integral_h2() + series_and_residues_h2
 
         val_our = val_h0 + val_h1 + val_h2
@@ -406,15 +404,15 @@ class Lerch:
         return val_our
 
 
-def lerch_ours(s, lam, a):
+def lerch_ours(s, lam, a, alpha=mpf('1.0'), num_of_poles=1):
     val = mpf('0.0')
     if im(s) < 0:
-        lerch = Lerch(s, lam, a)
+        lerch = Lerch(s, lam, a, alpha, num_of_poles)
         val = lerch.lerch_ours()
     else:
         i = mpc('0.0', '1.0')
-        lerch1 = Lerch(1 - s, 1 - a, lam)
-        lerch2 = Lerch(1 - s, a, 1 - lam)
+        lerch1 = Lerch(1 - s, 1 - a, lam, alpha, num_of_poles)
+        lerch2 = Lerch(1 - s, a, 1 - lam, alpha, num_of_poles)
         pre_fac = power(2 * pi, -(1 - s)) * gamma(1 - s)
         pre_fac_1 = exp(+pi / 2 * i * (1 - s) - 2 * pi * i * a * lam)
         pre_fac_2 = exp(-pi / 2 * i * (1 - s) + 2 * pi * i * a * (1 - lam))
@@ -427,9 +425,9 @@ def lerch_ours(s, lam, a):
     return val
 
 
-def lerch_ours_h(s, lam, a, q, h):
+def lerch_ours_h(s, lam, a, q, h, alpha=mpf('1.0'), num_of_poles=1):
     assert (im(s) < 0)  # only implemented for im(s) < 0
-    lerch = Lerch(s, lam, a)
+    lerch = Lerch(s, lam, a, alpha, num_of_poles)
     lerch.set_q_m_and_h(q, h)
     return lerch.lerch_ours()
 
@@ -634,10 +632,9 @@ def check_plots_h0(results_dir):
     return
 
 
-def check_for_h_dependence():
-    accuracy = 1200
+def check_for_h_dependence(results_dir):
+    accuracy = 700
     extra_accuracy = 20
-    accuracy_mpmath = 100
     mp.dps = accuracy + extra_accuracy
 
     s = mpc('0.6', '-1000.0')
@@ -645,38 +642,62 @@ def check_for_h_dependence():
     a = mpf('0.9')
 
     start = time.time()
-    lerch_ref = mpc(
-        '0.81247019538516162988458183946323724256833496580904919450961814182536062164349287836058069283622909065525733252800346505004056771086293627798453924747001401715853928914907495110853165178593260535020745484593622087300894797417001977136365113528561705236290380246549185958350183158074681872968223381166767505208140148451680862468805651884199967009408874948257629881738422195270219223242998595084788800179736362566514157769198339182465220854221531481253473868686462382901163512466878767479301695158022839',
-        '-0.38668807953602791631487998284981675490992185017136017621799054617569628032573177414004617051186093974358220543390275296260197536984579239314063338974580085896185136719594840526754207518488008902967600066006397336110935481031531207155346444490366965070609925862764689023840945792670597141174729394680267558313689709271175135410503786971336130588711652706013635156555420179598718094312929455162638724581487454460245773865601084489017230231188225055763676865749716644312520399424369878885703704610301469')
+    lerch_ref = lerch_ours(s, lam, a)
+    # lerch_ref = mpc(
+    #     '0.81247019538516162988458183946323724256833496580904919450961814182536062164349287836058069283622909065525733252800346505004056771086293627798453924747001401715853928914907495110853165178593260535020745484593622087300894797417001977136365113528561705236290380246549185958350183158074681872968223381166767505208140148451680862468805651884199967009408874948257629881738422195270219223242998595084788800179736362566514157769198339182465220854221531481253473868686462382901163512466878767479301695158022839',
+    #     '-0.38668807953602791631487998284981675490992185017136017621799054617569628032573177414004617051186093974358220543390275296260197536984579239314063338974580085896185136719594840526754207518488008902967600066006397336110935481031531207155346444490366965070609925862764689023840945792670597141174729394680267558313689709271175135410503786971336130588711652706013635156555420179598718094312929455162638724581487454460245773865601084489017230231188225055763676865749716644312520399424369878885703704610301469')
 
     end = time.time()
     time_mpmath = (end - start)
     q = mpf('6.0')
     h = mpf('0.05')
 
-    file_name = 'lerch_results_with_residue.csv'
     col_values = []
-    col_names = ['h', 'error']
-    for k in range(1, 10):
-        print(k)
-        start = time.time()
-        lerch_ours_val = lerch_ours_h(s, lam, a, q, h)
-        end = time.time()
+    col_names = ['h', 'm', 'error_one_0', 'error_one_1', 'error_quarter_0', 'error_quarter_1']
 
-        err = abs(lerch_ours_val - lerch_ref)
-        # mp.dps = accuracy
-        error = log10(err)
-        # print('log error  :', error)
-        col_values.append([nstr(h, 5), nstr(error, 5)])
-        print('theirs ', lerch_ref)
-        print('ours   ', lerch_ours_val)
-        print('error', nstr(error, 5))
+    alpha = 1.0
+    num_of_poles = 0
+    lerch_obj0 = Lerch(s, lam, a, alpha, num_of_poles)
+
+    alpha = 1.0
+    num_of_poles = 1
+    lerch_obj1 = Lerch(s, lam, a, alpha, num_of_poles)
+
+    alpha = 0.25
+    num_of_poles = 0
+    lerch_obj2 = Lerch(s, lam, a, alpha, num_of_poles)
+
+    alpha = 0.25
+    num_of_poles = 1
+    lerch_obj3 = Lerch(s, lam, a, alpha, num_of_poles)
+
+    lerch_obj_list = [lerch_obj0, lerch_obj1, lerch_obj2, lerch_obj3]
+
+    file_name = results_dir + r'lerch_h_dependence.csv'
+
+    for k in range(1, 6):
+        print(k)
+        error_list = []
+        for lerch_obj in lerch_obj_list:
+            lerch_obj.set_q_m_and_h(q, h)
+            riemann_ours_val = lerch_obj.lerch_ours()
+            err = abs(riemann_ours_val - lerch_ref)
+            error = log10(err)
+            error_list.append(error)
+
+        # print 'log error  :', error
+        col_values.append([nstr(h, 5), lerch_obj0.m, nstr(error_list[0], 5), nstr(error_list[1], 5),
+                           nstr(error_list[2], 5), nstr(error_list[3], 5)])
+        # print('theirs ', riemann_ref)
+        # print('ours   ', riemann_ours_val)
+        # print('error', nstr(error, 5))
         h = 0.5 * h
         res = pd.DataFrame.from_records(col_values, columns=col_names)
         res.to_csv(file_name)
 
     res = pd.DataFrame.from_records(col_values, columns=col_names)
-    res.to_csv(file_name)
+
+    res.to_csv(file_name, index=False)
     return
 
 
@@ -697,9 +718,9 @@ if __name__ == "__main__":
     lam = mpf('0.2')
     a = mpf('0.9')
 
-    check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
+    # check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
     # check_for_multiple_settings()
-    # check_for_h_dependence()
+    check_for_h_dependence(results_dir)
     # check_plots_h2(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)
