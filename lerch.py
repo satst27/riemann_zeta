@@ -637,7 +637,7 @@ def check_for_h_dependence(results_dir):
     extra_accuracy = 20
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('0.6', '-1000.0')
+    s = mpc('0.6', '-100000000.0')
     lam = mpf('0.7')
     a = mpf('0.9')
 

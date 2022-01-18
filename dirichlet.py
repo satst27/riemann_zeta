@@ -404,10 +404,10 @@ def check_for_h_dependence(results_dir):
     w = exp(i * pi / 3)
     chi = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
 
-    s = mpc('0.0', '1000.0')
+    s = mpc('0.6', '100000000.0')
 
     start = time.time()
-    dirichlet_ref = dirichlet(s, chi)
+    dirichlet_ref = dirichlet_ours(s, chi)
     end = time.time()
     time_mpmath = (end - start)
     q = mpf('6.0')

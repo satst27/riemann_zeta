@@ -427,7 +427,7 @@ if __name__ == "__main__":
     accuracy_mpmath = 100
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('0.6', '100000.0')
+    s = mpc('0.6', '100000000.0')
 
     # check_for_one_setting(s, accuracy, accuracy_mpmath)
     # check_for_multiple_settings()
