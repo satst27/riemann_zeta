@@ -134,7 +134,7 @@ class Dirichlet:
         mp.dps = 20
         # h0 :
 
-        q_est = asinh(sqrt(mp_org_accuracy / pi * self.md * ln(10.)) / self.alpha)
+        q_est = asinh(sqrt(mp_org_accuracy / pi / 2 * self.md * ln(10.)) / self.alpha)
         low_val = log10(abs(self.integrand_h0(self.s, 0.8 * q_est))) + mp_org_accuracy
         high_val = log10(abs(self.integrand_h0(self.s, 1.5 * q_est))) + mp_org_accuracy
         if self.debug:
@@ -248,7 +248,10 @@ def check_for_one_setting(s, chi, accuracy):
 
     print('Calculating Dirichlet function by DE method ...')
     start = time.time()
-    val_our = dirichlet_ours(s, chi)
+    if abs(im(s)) < 100.0:
+        val_our = dirichlet_ours(s, chi, 0.2) # alpha = 0.2
+    else:
+        val_our = dirichlet_ours(s, chi) # alpha = 1.0
     end = time.time()
     time_ours = (end - start)
     # print('val_ours  	:', nstr(val_our, 8))
@@ -307,11 +310,12 @@ def check_for_multiple_settings():
     s_vec = [mpf('0.0'), mpf('0.1'), mpf('0.2'), mpf('0.3'), mpf('0.4'), mpf('0.5'), mpf('0.6'), mpf('0.7'), mpf('0.8'),
              mpf('0.9'), mpf('1.0')]
 
-    # t_vec = [mpf('1.0'), mpf('10.0'), mpf('100.0')]
+    t_vec = [mpf('1.0'), mpf('10.0'), mpf('100.0'), mpf('1000.0')]
 
-    t_vec = []
-    for k in range(10):
-        t_vec.append(10000 * rand())
+    # t_vec = []
+    # for k in range(10):
+    #     t_val = 10000 * rand()
+    #     if t_val > 10.0: t_vec.append(10000 * rand())
 
     ls = [(acc, s, t, chi) for acc in accuracy_vec for s in s_vec for t in t_vec for chi in chi_vec]
 
@@ -435,7 +439,7 @@ def check_for_h_dependence(results_dir):
     rz_obj_list = [rz_obj0, rz_obj1, rz_obj2, rz_obj3]
 
     # file_name = r'dirichlet_h_dependence_' + nstr(alpha, 3) + '_' + nstr(num_of_poles, 1) + '.csv'
-    file_name = results_dir + r'dirichlet_h_dependence.csv'
+    file_name = results_dir + r'dirichlet_h_dependence_n0.csv'
 
     for k in range(1, 6):
         print(k)
@@ -479,7 +483,7 @@ if __name__ == "__main__":
     w = exp(i * pi / 3)
     chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
     # check_for_one_setting(s, chi_val, accuracy)
-    # check_for_multiple_settings()
-    check_for_h_dependence(results_dir)
+    check_for_multiple_settings()
+    # check_for_h_dependence(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)

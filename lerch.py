@@ -29,7 +29,7 @@ class Lerch:
         self.alpha = alpha
         self.eps = exp(self.i * pi / 4)  # direction of integration for h1 and h2. For h0 it is 1/eps
         self.num_of_poles = num_of_poles
-        self.debug = False
+        self.debug = True
 
         self.n0 = self.build_n0()
         self.n1 = self.build_n1()
@@ -253,7 +253,7 @@ class Lerch:
         mp_org_accuracy = mp.dps
         mp.dps = 20
         # h0 :
-        q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) * self.alpha)
+        q_est = asinh(sqrt(mp_org_accuracy / pi / 2 * ln(10.)) * self.alpha)
         low_val = log10(abs(self.integrand_h0(0.8 * q_est))) + mp_org_accuracy
         high_val = log10(abs(self.integrand_h0(1.5 * q_est))) + mp_org_accuracy
 
@@ -290,7 +290,7 @@ class Lerch:
             print('q_h0', q_h0)
 
         # h1: this case corresponds to very small correction that in practise is much smaller than the required accuracy
-        q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) / self.alpha)
+        q_est = asinh(sqrt(mp_org_accuracy / pi / 2 * ln(10.)) / self.alpha)
 
         low_val = log10(abs(self.integrand_h1(0.8 * q_est))) + mp_org_accuracy
         high_val = log10(abs(self.integrand_h1(1.5 * q_est))) + mp_org_accuracy
@@ -458,7 +458,10 @@ def check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath):
 
     print('Calculating Lerch function by DE method ...')
     start = time.time()
-    val_our = lerch_ours(s, lam, a)
+    if abs(im(s)) < 100.0:
+        val_our = lerch_ours(s, lam, a, 0.2)  # alpha  = 0.2
+    else:
+        val_our = lerch_ours(s, lam, a)  # alpha  = 1.0
     end = time.time()
     time_ours = (end - start)
     # print('val_ours  	:', nstr(val_our, 8))
@@ -673,7 +676,7 @@ def check_for_h_dependence(results_dir):
 
     lerch_obj_list = [lerch_obj0, lerch_obj1, lerch_obj2, lerch_obj3]
 
-    file_name = results_dir + r'lerch_h_dependence.csv'
+    file_name = results_dir + r'lerch_h_dependence_n0.csv'
 
     for k in range(1, 6):
         print(k)
@@ -709,18 +712,18 @@ if __name__ == "__main__":
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
-    accuracy = 50
+    accuracy = 100
     extra_accuracy = 20
     accuracy_mpmath = 200
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('1.6', '-100.0')
-    lam = mpf('0.2')
-    a = mpf('0.9')
+    s = mpc('0.0', '-1.0')
+    lam = mpf('0.0')
+    a = mpf('0.3')
 
     # check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
-    # check_for_multiple_settings()
-    check_for_h_dependence(results_dir)
+    check_for_multiple_settings()
+    # check_for_h_dependence(results_dir)
     # check_plots_h2(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)

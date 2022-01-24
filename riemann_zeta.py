@@ -15,7 +15,7 @@ class RiemannZeta:
         self.alpha = alpha
         self.eps = exp(self.i * pi / 4)  # direction of integration for h1 and h2. For h0 it is 1/eps
         self.num_of_poles = num_of_poles
-        self.debug = False
+        self.debug = True
 
         self.n0 = self.build_n0()
 
@@ -96,7 +96,7 @@ class RiemannZeta:
         mp.dps = 20
         # h0 :
 
-        q_est = asinh(sqrt(mp_org_accuracy / pi * ln(10.)) / self.alpha)
+        q_est = asinh(sqrt(mp_org_accuracy / pi / 2 * ln(10.)) / self.alpha)
         low_val = log10(abs(self.integrand_h0(self.s, 0.8 * q_est))) + mp_org_accuracy
         high_val = log10(abs(self.integrand_h0(self.s, 1.5 * q_est))) + mp_org_accuracy
 
@@ -130,7 +130,10 @@ class RiemannZeta:
         q = max(q_right, q_left)
 
         if self.debug:
-            print('q', q)
+            print('q_est  ', q_est)
+            print('q_left ', q_left)
+            print('q_right', q_right)
+            print('q      ', q)
         mp.dps = mp_org_accuracy
         return q
 
@@ -198,7 +201,10 @@ def check_for_one_setting(s, accuracy, accuracy_mpmath):
 
     print('Calculating RiemannZeta function by DE method ...')
     start = time.time()
-    val_our = riemann_ours(s)
+    if abs(im(s)) < 100.0:
+        val_our = riemann_ours(s, 0.2)  # alpha = 0.2
+    else:
+        val_our = riemann_ours(s)  # alpha = 1.0
     end = time.time()
     time_ours = (end - start)
     # print('val_ours  	:', nstr(val_our, 8))
@@ -248,7 +254,8 @@ def check_for_multiple_settings():
     accuracy_vec = [100]  # ensure acc_mpmath is larger than this accuracy
     s_vec = [mpf('0.0'), mpf('0.1'), mpf('0.2'), mpf('0.3'), mpf('0.4'), mpf('0.5'), mpf('0.6'), mpf('0.7'), mpf('0.8'),
              mpf('0.9'), mpf('1.0')]
-    t_vec = [mpf('1.0'), mpf('10.0'), mpf('100.0')]
+    t_vec = [mpf('10.0'), mpf('100.0'), mpf('1000.0'), mpf('10000.0'), mpf('100000.0'),
+             mpf('1000000.0'), mpf('10000000.0'), mpf('100000000.0')]
     ls = [(acc, s, t) for acc in accuracy_vec for s in s_vec for t in t_vec]
 
     acc_mpmath = 150
@@ -386,7 +393,7 @@ def check_for_h_dependence(results_dir):
 
     rz_obj_list = [rz_obj0, rz_obj1, rz_obj2, rz_obj3]
 
-    file_name = results_dir + r'riemann_h_dependence.csv'
+    file_name = results_dir + r'riemann_h_dependence_n0.csv'
 
     for k in range(1, 6):
         print(k)
@@ -427,10 +434,10 @@ if __name__ == "__main__":
     accuracy_mpmath = 100
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('0.6', '100000000.0')
+    s = mpc('0.0', '1.0')
 
     # check_for_one_setting(s, accuracy, accuracy_mpmath)
-    # check_for_multiple_settings()
-    check_for_h_dependence(results_dir)
+    check_for_multiple_settings()
+    # check_for_h_dependence(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)
