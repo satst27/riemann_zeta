@@ -402,7 +402,6 @@ def check_for_h_dependence(results_dir):
             error = log10(err)
             error_list.append(error)
 
-        # print 'log error  :', error
         col_values.append([nstr(h, 5), rz_obj0.m, nstr(error_list[0], 5), nstr(error_list[1], 5),
                            nstr(error_list[2], 5), nstr(error_list[3], 5)])
         # print('theirs ', riemann_ref)
