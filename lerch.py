@@ -29,7 +29,7 @@ class Lerch:
         self.alpha = alpha
         self.eps = exp(self.i * pi / 4)  # direction of integration for h1 and h2. For h0 it is 1/eps
         self.num_of_poles = num_of_poles
-        self.debug = True
+        self.debug = False
 
         self.n0 = self.build_n0()
         self.n1 = self.build_n1()
@@ -459,7 +459,7 @@ def check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath):
     print('Calculating Lerch function by DE method ...')
     start = time.time()
     if abs(im(s)) < 100.0:
-        val_our = lerch_ours(s, lam, a, 0.2)  # alpha  = 0.2
+        val_our = lerch_ours(s, lam, a, 0.25)  # alpha  = 0.25
     else:
         val_our = lerch_ours(s, lam, a)  # alpha  = 1.0
     end = time.time()
@@ -483,23 +483,40 @@ def check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath):
     print('mpmath :', nstr(val_ref, accuracy))
     print('ours   :', nstr(val_our, accuracy))
     #
-    # print('time mpmath:', time_mpmath)
-    # print('time ours  :', time_ours)
+    print('time mpmath:', time_mpmath)
+    print('time ours  :', time_ours)
+
     print('s :', nstr(s, 10))
     error = round(log10(err), 2)
     print('log error  :', error)
     assert (error < -accuracy)
 
     mp.dps = mp_org_accuracy
-
-    print('val_mpmath	:', nstr(val_ref, 25))
-    print('val_ours  	:', nstr(val_our, 25))
     print('------------------------------------------------------------')
 
     # print('Desired accuracy achieved?	:', flag, )
     # print('Log10 errors in real and imaginary parts :', diff_real, ',', diff_img)
     # print('time taken mpmath :', round((end - start), 3))
     # print('time taken ours   :', round((end1 - start1), 3))
+    return
+
+
+def check_timing():
+    mp.dps = 1000
+    s = mpc('0.6', '-100.0')
+    lam = mpf('0.3')
+    a = mpf('0.7')
+
+    accuracy = 50
+    extra_accuracy = 20
+    mp.dps = accuracy + extra_accuracy
+
+    accuracy_mpmath = 90
+    check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
+
+    s = mpc('0.6', '-1000.0')
+    accuracy_mpmath = 650
+    check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
     return
 
 
@@ -514,8 +531,8 @@ def check_for_multiple_settings():
     t_vec = [mpf('-1.0'), mpf('-10.0'), mpf('-100.0')]
     ls = [(acc, s, t) for acc in accuracy_vec for s in s_vec for t in t_vec]
 
-    lam = mpf('0.7')
     a = mpf('0.3')
+    lam = mpf('0.7')
 
     acc_mpmath = 150
     for (acc, sig, t) in ls:
@@ -688,12 +705,11 @@ def check_for_h_dependence(results_dir):
             error = log10(err)
             error_list.append(error)
 
-        # print 'log error  :', error
         col_values.append([nstr(h, 5), lerch_obj0.m, nstr(error_list[0], 5), nstr(error_list[1], 5),
                            nstr(error_list[2], 5), nstr(error_list[3], 5)])
         # print('theirs ', riemann_ref)
         # print('ours   ', riemann_ours_val)
-        # print('error', nstr(error, 5))
+        # print('error  ', nstr(error, 5))
         h = 0.5 * h
         res = pd.DataFrame.from_records(col_values, columns=col_names)
         res.to_csv(file_name)
@@ -712,30 +728,21 @@ if __name__ == "__main__":
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
-    accuracy = 100
+    accuracy = 50
     extra_accuracy = 20
-    accuracy_mpmath = 200
+    accuracy_mpmath = 90
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('0.0', '-1.0')
-    lam = mpf('0.0')
-    a = mpf('0.3')
+    s = mpc('0.6', '-100.0')
+    lam = mpf('0.3')
+    a = mpf('0.7')
 
-    # check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
-    check_for_multiple_settings()
+    # Uncomment the tests below that you want to run
+    check_for_one_setting(s, lam, a, accuracy, accuracy_mpmath)
+    # check_for_multiple_settings()
     # check_for_h_dependence(results_dir)
+    # check_timing()
     # check_plots_h2(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)
-    # print('zeta ours   :', nstr(riemann_ours(s), accuracy))
-    # print('zeta mpmath :', nstr(zeta(s), accuracy))
-    #
-    # print('hurwitz ours   :', nstr(hurwitz_ours(s, a), accuracy))
-    # print('hurwitz mpmath :', nstr(hurwitz(s, a), accuracy))
 
-    # i = mpc('0.0', '1.0')
-    # s = mpc('-20.0', '-10.0')
-    # w = exp(i * pi / 3)
-    # chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
-    # print('dirichlet ours   :', nstr(dirichlet_ours(s, chi_val), accuracy))
-    # print('dirichlet mpmath :', nstr(dirichlet(s, chi_val), accuracy))

@@ -50,7 +50,6 @@ class Dirichlet:
         return w0
 
     def double_exp_residue_pos_h0(self, k):
-        # t = (k - 0.5) / (self.alpha * self.eps)
         t = (self.n0 + k - self.r0) / (self.alpha * self.eps)
         xp = asinh(t)
         return xp
@@ -249,15 +248,15 @@ def check_for_one_setting(s, chi, accuracy):
     print('Calculating Dirichlet function by DE method ...')
     start = time.time()
     if abs(im(s)) < 100.0:
-        val_our = dirichlet_ours(s, chi, 0.2) # alpha = 0.2
+        val_our = dirichlet_ours(s, chi, 0.25)  # alpha = 0.25
     else:
         val_our = dirichlet_ours(s, chi) # alpha = 1.0
     end = time.time()
     time_ours = (end - start)
-    # print('val_ours  	:', nstr(val_our, 8))
-    print('Done')
+    print('ours   :', nstr(val_our, accuracy))
+    print('Done with our implementation .. ')
 
-    print('Calculating using mpmath DirichletPhi function for t < 10000000 and our Hurwitz zeta otherwise...')
+    print('Calculating using mpmath DirichletPhi function if t < 10000000 and our Hurwitz zeta if t > 10000000 ...')
     start = time.time()
     val_ref = mpf('0.0')
     if im(s) < 10000000.0:
@@ -272,11 +271,11 @@ def check_for_one_setting(s, chi, accuracy):
     time_ours = round(time_ours, 3)
     time_mpmath = round(time_mpmath, 3)
 
-    print('mpmath :', nstr(val_ref, accuracy))
     print('ours   :', nstr(val_our, accuracy))
-    #
-    print('time mpmath:', time_mpmath)
+    print('mpmath :', nstr(val_ref, accuracy))
+
     print('time ours  :', time_ours)
+    print('time mpmath:', time_mpmath)
     print('s :', nstr(s, 10))
     error = round(log10(err), 2)
     print('log error  :', error)
@@ -482,8 +481,10 @@ if __name__ == "__main__":
     s = mpc('0.6', '10000.0')
     w = exp(i * pi / 3)
     chi_val = [0, 1, power(w, 2), -w, -w, power(w, 2), 1]
-    # check_for_one_setting(s, chi_val, accuracy)
-    check_for_multiple_settings()
+
+    # Uncomment the tests below that you want to run
+    check_for_one_setting(s, chi_val, accuracy)
+    # check_for_multiple_settings()
     # check_for_h_dependence(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)

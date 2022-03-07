@@ -12,24 +12,24 @@ class RiemannZeta:
     def __init__(self, s, alpha=mpf('1.0'), num_of_poles=1):
         self.s = s
         self.i = mpc('0', '1')
-        self.alpha = alpha
-        self.eps = exp(self.i * pi / 4)  # direction of integration for h1 and h2. For h0 it is 1/eps
-        self.num_of_poles = num_of_poles
-        self.debug = True
+        self.alpha = alpha   # Eq 71
+        self.eps = exp(self.i * pi / 4)  # direction of integration for h1 and h2. For h0 it is 1/eps # Eq 71
+        self.num_of_poles = num_of_poles  # Eq 77
+        self.debug = False
 
-        self.n0 = self.build_n0()
+        self.n0 = self.build_n0()  # Eq 72
 
-        self.r0 = self.build_root_h0()
-        # self.r0 = self.n0 + 0.5
+        self.r0 = self.build_root_h0()  # r in Eq 71
+        # self.r0 = self.n0 + 0.5  #  see comments before Eq 77
 
         if self.debug:
             print('n0', self.n0)
             print('r0', nstr(self.r0, 5))
             # print('r01', nstr(self.r01, 5))
 
-        self.q = self.set_q_value()
-        self.m, self.h = self.set_m_and_h_values()
-        self.lin_grid = linspace(-self.q, self.q, self.m)
+        self.q = self.set_q_value()   # see comments at the bottom of page 18
+        self.m, self.h = self.set_m_and_h_values()  # see comments at the bottom of page 18
+        self.lin_grid = linspace(-self.q, self.q, self.m)  # see comments at the bottom of page 18
 
     def build_n0(self):
         w0 = self.build_root_h0()
@@ -46,7 +46,7 @@ class RiemannZeta:
         xp = asinh(t)
         return xp
 
-    def phi_hat_h0(self, m):
+    def phi_hat_h0(self, m):   # phi in the second term on the RHS of Eq 77
         xp = self.double_exp_residue_pos_h0(m)
         return self.phi_hat(xp)
 
@@ -57,32 +57,29 @@ class RiemannZeta:
             y = -1 / (1 - exp(+2 * pi * self.i * x / self.h))
         return y
 
-    def series_h0(self, s):
+    def series_h0(self, s):  # series sum in Eq 70
         sum0 = nsum(lambda k: power(k, -s), [1, self.n0])
         if self.debug:
             print('series_h0 : ', sum0)
         return sum0
 
-    def series_residues_h0(self, s):
+    def series_residues_h0(self, s):  # second series on the rhs of Eq 77
         val = mpf('0.0')
         for k in range(- self.num_of_poles + 1, self.num_of_poles + 1):
             if self.n0 + k > 0:
                 val += self.phi_hat_h0(k) * power(self.n0 + k, -s)
-
-        # val = nsum(lambda k: (self.n0 + k > 0) * self.phi_hat_h0(k) * power(self.n0 + k, -s),
-        #            [- self.num_of_poles + 1, self.num_of_poles])
         if self.debug:
             print('n0 : ', self.n0)
             print('series_residues_h0 : ', val)
         return val
 
-    def integrand_h0(self, s, x):
+    def integrand_h0(self, s, x):  # terms in the first sum on the rhs of Eq 77
         zn = self.r0 + self.alpha * self.eps * sinh(x)
         y = -(self.alpha * self.eps * cosh(x)) * exp(self.i * pi * zn * zn) * power(zn, -s) \
             / (exp(self.i * pi * zn) - exp(-self.i * pi * zn))
         return y
 
-    def integral_h0(self, s):
+    def integral_h0(self, s):  # first sum on the rhs of Eq 77
         sum0 = mpf('0.0')
         for jx in self.lin_grid:
             sum0 += self.integrand_h0(s, jx)
@@ -138,7 +135,7 @@ class RiemannZeta:
         return q
 
     def set_m_and_h_values(self):
-        h = 0.25 * power(pi, 2) / (ln(10.) * mp.dps)  # sandeep
+        h = 0.25 * power(pi, 2) / (ln(10.) * mp.dps)  # see discussion on page 18
         m = 2 * int(self.q / h) + 1
         h = 2.0 * self.q / (m - 1)
         return m, h
@@ -152,7 +149,7 @@ class RiemannZeta:
 
     def total_value(self, s):
         series_and_residues_h0 = self.series_h0(s) - self.series_residues_h0(s)
-        val_our = self.integral_h0(s) + series_and_residues_h0
+        val_our = self.integral_h0(s) + series_and_residues_h0  # Eq 77
 
         if self.debug:
             print('series_plus_residue_h0 ', series_and_residues_h0)
@@ -187,7 +184,7 @@ def riemann_ours(s, alpha=mpf('1.0'), num_of_poles=1):
     return val
 
 
-def riemann_ours_h(s, q, h, alpha=mpf('1.0'), num_of_poles=1):
+def riemann_ours_h(s, q, h, alpha=mpf('1.0'), num_of_poles=1): # helper function when we want to work with a given q & h
     rz_obj = RiemannZeta(s, alpha, num_of_poles)
     rz_obj.set_q_m_and_h(q, h)
     return rz_obj.riemann_ours()
@@ -202,7 +199,7 @@ def check_for_one_setting(s, accuracy, accuracy_mpmath):
     print('Calculating RiemannZeta function by DE method ...')
     start = time.time()
     if abs(im(s)) < 100.0:
-        val_our = riemann_ours(s, 0.2)  # alpha = 0.2
+        val_our = riemann_ours(s, 0.25)  # alpha = 0.25
     else:
         val_our = riemann_ours(s)  # alpha = 1.0
     end = time.time()
@@ -251,16 +248,16 @@ def check_for_multiple_settings():
 
     mp.dps = 1000  # temporary
     i = mpc('0.0', '1.0')
-    accuracy_vec = [100]  # ensure acc_mpmath is larger than this accuracy
+    accuracy_vec = [10, 20, 100, 200, 400, 500, 1000]  # ensure acc_mpmath is larger than this accuracy
     s_vec = [mpf('0.0'), mpf('0.1'), mpf('0.2'), mpf('0.3'), mpf('0.4'), mpf('0.5'), mpf('0.6'), mpf('0.7'), mpf('0.8'),
              mpf('0.9'), mpf('1.0')]
     t_vec = [mpf('10.0'), mpf('100.0'), mpf('1000.0'), mpf('10000.0'), mpf('100000.0'),
              mpf('1000000.0'), mpf('10000000.0'), mpf('100000000.0')]
     ls = [(acc, s, t) for acc in accuracy_vec for s in s_vec for t in t_vec]
 
-    acc_mpmath = 150
     for (acc, sig, t) in ls:
         mp.dps = acc + 20
+        acc_mpmath = acc + 20
         s = sig + i * t
         check_for_one_setting(s, acc, acc_mpmath)
 
@@ -323,10 +320,10 @@ def plot_conformal_mapping(results_dir):
 
 def check_plots_h0(results_dir):
     mp_org_accuracy = mp.dps
-    # mp.dps = 10
+    mp.dps = 20
     num_cols, num_rows = 2, 2
-    q = mpf('3.5')
-    xp = np.linspace(float(-q), float(q), num=101)
+    q = mpf('3.0')
+    xp = np.linspace(float(-q), float(q), num=201)
 
     s_list = [mpc('0.6', '100.0'), mpc('0.6', '1000.0'), mpc('0.6', '10000.0'), mpc('0.6', '100000.0')]
 
@@ -429,15 +426,16 @@ if __name__ == "__main__":
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
-    accuracy = 50
+    accuracy = 10
     extra_accuracy = 20
-    accuracy_mpmath = 100
+    accuracy_mpmath = 200
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('0.0', '1.0')
+    s = mpc('0.0', '10.0')
 
-    # check_for_one_setting(s, accuracy, accuracy_mpmath)
-    check_for_multiple_settings()
+    # Uncomment the tests below that you want to run
+    check_for_one_setting(s, accuracy, accuracy_mpmath)
+    # check_for_multiple_settings()
     # check_for_h_dependence(results_dir)
     # check_plots_h0(results_dir)
     # plot_conformal_mapping(results_dir)
