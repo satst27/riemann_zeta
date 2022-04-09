@@ -95,7 +95,7 @@ class Lerch:
 
     def double_exp_residue_pos_h1(self, k):
         # t = (k - 0.5) / (self.alpha * self.eps)
-        t = (-self.n1 - self.lam + k - self.r1) / (self.alpha * self.eps)
+        t = (-self.n1 - self.lam - k - self.r1) / (self.alpha * self.eps)
         xp = asinh(t)
         return xp
 
@@ -164,7 +164,7 @@ class Lerch:
             lambda k: self.phi_hat_h1(k)
                       * exp(-2 * pi * self.i * self.a * (self.n1 + k))
                       * power(self.n1 + k + self.lam, self.s - 1) if (self.n1 + k + self.lam > 0) else 0.0,
-            [- self.num_of_poles + 1, self.num_of_poles])
+            [- self.num_of_poles, self.num_of_poles-1])
         val *= pre_factor
         if self.debug:
             print('series_residues_h1', val)
@@ -404,7 +404,7 @@ class Lerch:
         return val_our
 
 
-def lerch_ours(s, lam, a, alpha=mpf('1.0'), num_of_poles=1):
+def lerch_ours(s, lam, a, alpha=mpf('1.0'), num_of_poles=2):
     val = mpf('0.0')
     if im(s) < 0:
         lerch = Lerch(s, lam, a, alpha, num_of_poles)
@@ -728,12 +728,12 @@ if __name__ == "__main__":
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
-    accuracy = 50
+    accuracy = 200
     extra_accuracy = 20
-    accuracy_mpmath = 90
+    accuracy_mpmath = 300
     mp.dps = accuracy + extra_accuracy
 
-    s = mpc('0.6', '-100.0')
+    s = mpc('0.6', '100.0')
     lam = mpf('0.3')
     a = mpf('0.7')
 
