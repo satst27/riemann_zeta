@@ -404,7 +404,7 @@ class Lerch:
         return val_our
 
 
-def lerch_ours(s, lam, a, alpha=mpf('1.0'), num_of_poles=2):
+def lerch_ours(s, lam, a, alpha=mpf('1.0'), num_of_poles=1):
     val = mpf('0.0')
     if im(s) < 0:
         lerch = Lerch(s, lam, a, alpha, num_of_poles)
