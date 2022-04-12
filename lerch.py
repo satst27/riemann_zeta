@@ -13,7 +13,8 @@ import os
 import pandas as pd
 
 
-# check if alpha needs a different direction
+# Note that for a=0 it returns the zeta value for lam=0 and for other lam value it will return a value that ignores
+# the a=0 singularity
 
 
 class Lerch:
